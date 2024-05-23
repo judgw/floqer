@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SQLite Data Display</title>
+    <style>
+        .container {
+            display: flex;
+            flex-wrap: wrap;
+        }
+
+        .table-container {
+            flex: 1;
+            margin-right: 20px;
+        }
+
+        #jobSalaryChart {
+            flex: 1;
+            border: 1px solid black;
+            border-radius: 10px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            border-radius: 8px; /* Adjust the border radius as needed */
+            overflow: hidden;
+        }
+
+        table, th, td {
+            border: 1px solid black;
+        }
+
+        th, td {
+            font-family:Cambria, Cochin, Georgia, Times, 'Times New Roman', serif;
+            padding: 8px;
+            text-align: left;
+        }
+
+        th {
+            cursor: pointer;
+            background-color: #5f5f5f;
+            color: #e2e0e0;
+            font-weight: bold;
+            padding: 8px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+
+        tr:hover {
+            background-color: #f5f5f5;
+            cursor: pointer;
+        }
+
+        tr:nth-child(even) {
+            background-color: #dfdfdf;
+        }
+        .chart_det{
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.9);;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="table-container">
+            <h1 style="font-family: Georgia, 'Times New Roman', Times, serif;">Main - Table</h1>
+            <table id="mainTable" class="mainTable">
+                <thead>
+                    <tr>
+                        <th onclick="sortTable('mainTable', 0)">Year</th>
+                        <th onclick="sortTable('mainTable', 1)">No_Total_Jobs</th>
+                        <th onclick="sortTable('mainTable', 2)">Average_salary_in_USD</th>
+                    </tr>
+                </thead>
+                <tbody>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="chart_det">
+            <h1 style="font-family: Georgia, 'Times New Roman', Times, serif;">Job Numbers and Salaries Over the Years</h1>
+            <canvas id="jobSalaryChart" width="400" height="200"></canvas>
+        </div>
+    </div>
+
+    <h1 style="font-family: Georgia, 'Times New Roman', Times, serif;">Data for Selected Year</h1>
+    <table id="dataTable">
+        <thead>
+            <tr>
+                <th>Job_title</th>
+                <th>No_Of_Jobs</th>
+            </tr>
+        </thead>
+        <tbody>
+        </tbody>
+    </table>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        async function fetchData(url, tableId, onRowClick = null) {
+            try {
+                const response = await fetch(url);
+                const result = await response.json();
+                const tableBody = document.querySelector(`#${tableId} tbody`);
+                tableBody.innerHTML = '';
+
+                result.data.forEach(row => {
+                    const tr = document.createElement('tr');
+                    Object.entries(row).forEach(([key, value]) => {
+                        const td = document.createElement('td');
+                        td.textContent = value;
+                        tr.appendChild(td);
+                    });
+                    if (onRowClick) {
+                        tr.addEventListener('click', () => onRowClick(row));
+                    }
+                    tableBody.appendChild(tr);
+                });
+            } catch (error) {
+                console.error('Error fetching data:', error);
+            }
+        }
+
+        function sortTable(tableId, colIndex) {
+            const table = document.getElementById(tableId);
+            const tbody = table.tBodies[0];
+            const rows = Array.from(tbody.rows);
+            const ascending = table.dataset.sortOrder !== 'asc';
+            rows.sort((a, b) => {
+                const aText = a.cells[colIndex].textContent.trim();
+                const bText = b.cells[colIndex].textContent.trim();
+                return ascending
+                    ? aText.localeCompare(bText, undefined, { numeric: true })
+                    : bText.localeCompare(aText, undefined, { numeric: true });
+            });
+            tbody.append(...rows);
+            table.dataset.sortOrder = ascending ? 'asc' : 'desc';
+        }
+
+        function handleMainTableRowClick(row) {
+            const year = row.Year;
+            const url = `http://localhost:3000/data?year=${year}`;
+            fetchData(url, 'dataTable');
+        }
+
+        async function fetchAndDisplayChart() {
+            try {
+                const response = await fetch('http://localhost:3000/main_table');
+                const result = await response.json();
+                const years = result.data.map(row => row.Year);
+                const jobNumbers = result.data.map(row => row.No_Total_Jobs);
+                const salaries = result.data.map(row => row.Average_salary_in_USD);
+
+                const ctx = document.getElementById('jobSalaryChart').getContext('2d');
+                new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: years,
+                        datasets: [
+                            {
+                                label: 'Number of Jobs',
+                                data: jobNumbers,
+                                borderColor: 'rgba(75, 192, 192, 1)',
+                                borderWidth: 1,
+                                fill: false,
+                                yAxisID: 'y-axis-jobs'
+                            },
+                            {
+                                label: 'Average Salary (USD)',
+                                data: salaries,
+                                borderColor: 'rgba(255, 99, 132, 1)',
+                                borderWidth: 1,
+                                fill: false,
+                                yAxisID: 'y-axis-salary'
+                            }
+                        ]
+                    },
+                    options: {
+                        scales: {
+                            x: {
+                                title: {
+                                    display: true,
+                                    text: 'Year'
+                                }
+                            },
+                            'y-axis-jobs': {
+                                type: 'linear',
+                                position: 'left',
+                                title: {
+                                    display: true,
+                                    text: 'Number of Jobs'
+                                }
+                            },
+                            'y-axis-salary': {
+                                type: 'linear',
+                                position: 'right',
+                                title: {
+                                    display: true,
+                                    text: 'Average Salary (USD)'
+                                },
+                                grid: {
+                                    drawOnChartArea: false
+                                }
+                            }
+                        }
+                    }
+                });
+            } catch (error) {
+                console.error('Error fetching chart data:', error);
+            }
+        }
+
+        fetchData('http://localhost:3000/main_table', 'mainTable', handleMainTableRowClick);
+        fetchAndDisplayChart();
+    </script>
+</body>
+</html>
