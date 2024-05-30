@@ -9,7 +9,7 @@ app = Flask(__name__)
 df = pd.read_csv('salaries.csv')
 
 # Set your OpenAI API key (replace with yours)
-openai.api_key = 'sk-proj-QCr2IJAoqSz8R7WuQaOlT3BlbkFJfxZaZ0tapnW1jBHTbggE'  # Store securely
+openai.api_key = ''  # Store securely
 
 def query_llm(prompt, max_tokens=150):
   try:
